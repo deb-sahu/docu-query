@@ -1,28 +1,17 @@
-# DocuQuery - Document Q&A System
+# DocuQuery
 
-A web-based Question Answering application that allows users to upload documents and ask questions based on the document content. Built with FastAPI backend and React frontend.
-
-![Document Q&A System](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+A document-based Question Answering system that extracts answers from uploaded documents using TF-IDF similarity search.
 
 ## Features
 
-### Frontend
-- 🎨 Beautiful, modern dark-themed UI with neon accents
-- 📁 Drag & drop file upload (PDF, DOCX, TXT)
-- 📝 Direct text input for ad-hoc queries
-- 💬 Interactive Q&A interface
-- 🔍 Highlighted source passages
-- 📊 Confidence scores for answers
-- 📋 Question history tracking
-
-### Backend
-- ⚡ FastAPI-powered REST API
-- 📄 Document parsing (PDF, DOCX, TXT)
-- 🔎 TF-IDF based semantic search
-- 🧩 Text chunking with overlap
-- 📚 Multi-document knowledge base
+- **Multi-format document parsing** — PDF, DOCX, and TXT support with text extraction
+- **TF-IDF similarity search** — Find relevant passages using scikit-learn vectorization
+- **Text chunking with overlap** — Configurable chunk size (1200 chars) and overlap (200 chars)
+- **Multi-document knowledge base** — Query across multiple uploaded documents
+- **Confidence scoring** — Relevance scores for retrieved passages
+- **Source highlighting** — Shows which document and passage answered the query
+- **Direct text input** — Paste text directly without file upload
+- **REST API** — FastAPI backend with full OpenAPI documentation
 
 ## Quick Start
 
@@ -30,37 +19,25 @@ A web-based Question Answering application that allows users to upload documents
 - Python 3.9+
 - Node.js 18+
 
-### Backend Setup
+### Backend
 
 ```bash
-# Navigate to project directory
-cd Qa_Backend
-
-# Create virtual environment
+cd docu-query
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# Run the backend server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend Setup
+### Frontend
 
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Install dependencies
 npm install
-
-# Run development server
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:3000` and will proxy API requests to the backend at `http://localhost:8000`.
+Backend runs on `http://localhost:8000`, frontend on `http://localhost:3000`.
 
 ## API Endpoints
 
@@ -168,24 +145,12 @@ Edit `app/core/config.py` to customize:
 
 ## Use Cases
 
-- **Technical Documentation QA** - Answer questions from user manuals, API docs
-- **Product Specifications** - Query product specs and datasheets
-- **Research Papers** - Extract information from academic documents
-- **Legal Documents** - Search through contracts and policies
+Technical documentation, product specifications, research papers, legal documents.
 
-## Technology Stack
+## Tech Stack
 
-### Backend
-- **FastAPI** - Modern Python web framework
-- **pdfplumber** - PDF text extraction
-- **python-docx** - DOCX file parsing
-- **scikit-learn** - TF-IDF vectorization
-
-### Frontend
-- **React 18** - UI framework
-- **Vite** - Build tool
-- **Framer Motion** - Animations
-- **Lucide React** - Icons
+**Backend:** FastAPI, scikit-learn, pdfplumber, python-docx  
+**Frontend:** React 18, Vite
 
 ## License
 
