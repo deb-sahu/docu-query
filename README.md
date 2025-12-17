@@ -13,23 +13,30 @@ A document-based Question Answering system that extracts answers from uploaded d
 - **Direct text input** — Paste text directly without file upload
 - **REST API** — FastAPI backend with full OpenAPI documentation
 
-## Quick Start
+## Steps to Run Locally
 
 ### Prerequisites
 - Python 3.9+
 - Node.js 18+
 
-### Backend
+### Step 1: Clone and Setup Backend
 
 ```bash
 cd docu-query
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
+
+### Step 2: Start the Backend Server
+
+```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend
+The API will be available at `http://localhost:8000` with docs at `http://localhost:8000/docs`.
+
+### Step 3: Setup and Start Frontend
 
 ```bash
 cd frontend
@@ -37,7 +44,15 @@ npm install
 npm run dev
 ```
 
-Backend runs on `http://localhost:8000`, frontend on `http://localhost:3000`.
+The frontend will be available at `http://localhost:3000`.
+
+### Quick Start (Both Services)
+
+Alternatively, run both services with a single command:
+
+```bash
+./run.sh
+```
 
 ## API Endpoints
 

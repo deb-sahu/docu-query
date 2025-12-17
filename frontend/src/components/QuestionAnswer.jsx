@@ -1,3 +1,27 @@
+/**
+ * QuestionAnswer Component
+ * ========================
+ * 
+ * The main Q&A interface for asking questions about uploaded documents.
+ * 
+ * Features:
+ * - Search input for entering questions
+ * - Answer display with confidence scoring
+ * - Expandable source passages with highlighting
+ * - Question history for quick re-queries
+ * 
+ * The component calls the /api/answer endpoint and displays:
+ * - The composed answer from relevant passages
+ * - Overall confidence score with visual meter
+ * - Source documents with individual confidence badges
+ * - Highlighted query terms in source text
+ * 
+ * Props:
+ * - documents: Array of document metadata (to check if documents exist)
+ * - isLoading: Boolean indicating if query is in progress
+ * - setIsLoading: Function to update loading state
+ */
+
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -8,20 +32,31 @@ import { api } from '../api';
 import './QuestionAnswer.css';
 
 function QuestionAnswer({ documents, isLoading, setIsLoading }) {
+  // User's question input
   const [query, setQuery] = useState('');
+  // Answer response from API
   const [answer, setAnswer] = useState(null);
+  // Error message to display
   const [error, setError] = useState(null);
+  // Track which source cards are expanded
   const [expandedSources, setExpandedSources] = useState({});
+  // History of recent questions for quick re-query
   const [questionHistory, setQuestionHistory] = useState([]);
 
+  /**
+   * Submit the question to the API.
+   * Validates input, calls API, and updates state with results.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate question is not empty
     if (!query.trim()) {
       setError('Please enter a question');
       return;
     }
 
+    // Check if documents are available
     if (documents.length === 0) {
       setError('Please upload documents or add text first');
       return;
@@ -32,8 +67,11 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
     setAnswer(null);
 
     try {
+      // Call the answer API with top 5 results
       const result = await api.askQuestion(query, 5);
       setAnswer(result);
+      
+      // Add to question history (keep last 10)
       setQuestionHistory(prev => [
         { query, timestamp: new Date(), confidence: result.confidence_score },
         ...prev.slice(0, 9)
@@ -45,6 +83,9 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
     }
   };
 
+  /**
+   * Toggle expansion of a source card to show/hide full text.
+   */
   const toggleSource = (index) => {
     setExpandedSources(prev => ({
       ...prev,
@@ -52,14 +93,28 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
     }));
   };
 
+  /**
+   * Get the CSS color variable for a confidence level.
+   */
   const getConfidenceColor = (confidence) => {
     if (confidence === 'high') return 'var(--confidence-high)';
     if (confidence === 'medium') return 'var(--confidence-medium)';
     return 'var(--confidence-low)';
   };
 
+  /**
+   * Convert confidence score (0-1) to percentage.
+   */
   const getConfidencePercent = (score) => Math.round(score * 100);
 
+  /**
+   * Highlight query terms in the source text.
+   * Returns React elements with <mark> tags around matching terms.
+   * 
+   * @param {string} text - The source text
+   * @param {Array} highlights - Array of {start, end} positions to highlight
+   * @returns {Array} React elements with highlighted terms
+   */
   const highlightText = (text, highlights) => {
     if (!highlights || highlights.length === 0) return text;
     
@@ -67,9 +122,11 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
     let lastEnd = 0;
     
     highlights.forEach((h, i) => {
+      // Add text before the highlight
       if (h.start > lastEnd) {
         result.push(text.slice(lastEnd, h.start));
       }
+      // Add highlighted text
       result.push(
         <mark key={i} className="highlight">
           {text.slice(h.start, h.end)}
@@ -78,6 +135,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
       lastEnd = h.end;
     });
     
+    // Add remaining text after last highlight
     if (lastEnd < text.length) {
       result.push(text.slice(lastEnd));
     }
@@ -87,11 +145,13 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
 
   return (
     <div className="question-answer">
+      {/* Section Header */}
       <div className="section-header">
         <h2>Ask Questions</h2>
         <p>Query your uploaded documents and get answers with source references</p>
       </div>
 
+      {/* Empty State - Show when no documents available */}
       {documents.length === 0 ? (
         <div className="no-documents">
           <BookOpen size={48} />
@@ -100,6 +160,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
         </div>
       ) : (
         <>
+          {/* Question Input Form */}
           <form onSubmit={handleSubmit} className="question-form">
             <div className="search-input-wrapper">
               <Search size={20} className="search-icon" />
@@ -126,6 +187,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
             </div>
           </form>
 
+          {/* Error Message */}
           {error && (
             <motion.div
               className="error-message"
@@ -137,8 +199,9 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
             </motion.div>
           )}
 
-          {/* Answer Display */}
+          {/* Answer Display Area */}
           <AnimatePresence mode="wait">
+            {/* Loading State */}
             {isLoading && (
               <motion.div
                 className="loading-answer"
@@ -155,6 +218,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
               </motion.div>
             )}
 
+            {/* Answer Results */}
             {answer && !isLoading && (
               <motion.div
                 className="answer-container"
@@ -162,7 +226,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                {/* Confidence Banner */}
+                {/* Confidence Score Banner */}
                 <div className="confidence-banner">
                   <div className="confidence-info">
                     <Sparkles size={18} />
@@ -186,7 +250,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
                   </span>
                 </div>
 
-                {/* Query Echo */}
+                {/* Echo the user's question */}
                 <div className="query-echo">
                   <strong>Q:</strong> {answer.query}
                 </div>
@@ -201,7 +265,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
                   </div>
                 </div>
 
-                {/* Sources */}
+                {/* Source Passages */}
                 {answer.sources && answer.sources.length > 0 && (
                   <div className="sources-section">
                     <h4>
@@ -217,6 +281,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.1 }}
                         >
+                          {/* Source Header - clickable to expand */}
                           <button
                             className="source-header"
                             onClick={() => toggleSource(index)}
@@ -244,6 +309,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
                             </div>
                           </button>
                           
+                          {/* Expandable Source Content */}
                           <AnimatePresence>
                             {expandedSources[index] && (
                               <motion.div
@@ -267,7 +333,7 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
             )}
           </AnimatePresence>
 
-          {/* Question History */}
+          {/* Question History - shown when no active answer */}
           {questionHistory.length > 0 && !answer && (
             <div className="question-history">
               <h4>Recent Questions</h4>
@@ -295,4 +361,3 @@ function QuestionAnswer({ documents, isLoading, setIsLoading }) {
 }
 
 export default QuestionAnswer;
-
