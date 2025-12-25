@@ -1,21 +1,5 @@
 /**
  * DocuQuery - Main Application Component
- * =======================================
- * 
- * This is the root component of the DocuQuery frontend application.
- * It manages the global application state and renders the main layout.
- * 
- * Features:
- * - Tab-based navigation between Upload, Text Input, and Q&A views
- * - Document list sidebar showing all uploaded documents
- * - Stats banner with document count and status
- * - Toast notifications for user feedback
- * 
- * State Management:
- * - documents: Array of uploaded document metadata
- * - activeTab: Current active tab ('upload', 'text', or 'qa')
- * - isLoading: Global loading state for async operations
- * - notification: Toast notification state
  */
 
 import { useState, useEffect } from 'react';
@@ -30,21 +14,17 @@ import { api } from './api';
 import './styles/App.css';
 
 function App() {
-  // Global application state
-  const [documents, setDocuments] = useState([]);      // List of uploaded documents
-  const [activeTab, setActiveTab] = useState('upload'); // Current active tab
-  const [isLoading, setIsLoading] = useState(false);    // Loading indicator
-  const [notification, setNotification] = useState(null); // Toast notification
+  const [documents, setDocuments] = useState([]);
+  const [activeTab, setActiveTab] = useState('upload');
+  const [isLoading, setIsLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [config, setConfig] = useState(null);
 
-  // Fetch documents on initial mount
   useEffect(() => {
     fetchDocuments();
+    api.getConfig().then(setConfig).catch(console.error);
   }, []);
 
-  /**
-   * Fetch the list of documents from the backend.
-   * Called on mount and after document changes (upload, delete).
-   */
   const fetchDocuments = async () => {
     try {
       const data = await api.listDocuments();
@@ -54,39 +34,21 @@ function App() {
     }
   };
 
-  /**
-   * Show a toast notification that auto-dismisses after 4 seconds.
-   * 
-   * @param {string} message - The message to display
-   * @param {string} type - Notification type: 'success' or 'error'
-   */
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
   };
 
-  /**
-   * Handle successful file upload.
-   * Shows success notification and refreshes document list.
-   */
   const handleUploadSuccess = (result) => {
     showNotification(`${result.filename} uploaded successfully!`);
     fetchDocuments();
   };
 
-  /**
-   * Handle successful text processing.
-   * Shows success notification and refreshes document list.
-   */
   const handleTextProcessed = (result) => {
     showNotification(`Text processed into ${result.chunks_count} chunks!`);
     fetchDocuments();
   };
 
-  /**
-   * Handle document deletion.
-   * Shows notification and refreshes document list.
-   */
   const handleDeleteDocument = async (docId) => {
     try {
       await api.deleteDocument(docId);
@@ -97,7 +59,6 @@ function App() {
     }
   };
 
-  // Tab configuration for navigation
   const tabs = [
     { id: 'upload', label: 'Upload Files', icon: FileText },
     { id: 'text', label: 'Text Input', icon: Database },
@@ -108,7 +69,6 @@ function App() {
     <div className="app">
       <Header />
       
-      {/* Toast Notification - appears at top center */}
       <AnimatePresence>
         {notification && (
           <motion.div
@@ -125,7 +85,6 @@ function App() {
 
       <main className="main-content">
         <div className="container">
-          {/* Stats Banner - shows document count and status */}
           <motion.div 
             className="stats-banner glass"
             initial={{ opacity: 0, y: 20 }}
@@ -140,18 +99,17 @@ function App() {
               <span className="stat-value gradient-text">
                 {documents.reduce((sum, doc) => sum + doc.chunks, 0)}
               </span>
-              <span className="stat-label">Text Chunks</span>
+              <span className="stat-label">Chunks</span>
             </div>
             <div className="stat-divider" />
             <div className="stat">
               <span className="stat-value gradient-text">
-                {documents.length > 0 ? 'Ready' : 'Waiting'}
+                {config?.llm_provider || '...'}
               </span>
-              <span className="stat-label">Status</span>
+              <span className="stat-label">LLM</span>
             </div>
           </motion.div>
 
-          {/* Tab Navigation */}
           <nav className="tab-nav">
             {tabs.map((tab) => (
               <button
@@ -162,22 +120,14 @@ function App() {
                 <tab.icon size={18} />
                 {tab.label}
                 {activeTab === tab.id && (
-                  <motion.div
-                    className="tab-indicator"
-                    layoutId="tabIndicator"
-                  />
+                  <motion.div className="tab-indicator" layoutId="tabIndicator" />
                 )}
               </button>
             ))}
           </nav>
 
-          {/* Main Content Grid: Tab content on left, Document list on right */}
           <div className="content-grid">
-            {/* Left Panel - Active Tab Content */}
-            <motion.div 
-              className="panel main-panel"
-              layout
-            >
+            <motion.div className="panel main-panel" layout>
               <AnimatePresence mode="wait">
                 {activeTab === 'upload' && (
                   <motion.div
@@ -226,7 +176,6 @@ function App() {
               </AnimatePresence>
             </motion.div>
 
-            {/* Right Panel - Document List Sidebar */}
             <motion.div 
               className="panel side-panel"
               initial={{ opacity: 0, x: 20 }}

@@ -1,22 +1,5 @@
 /**
- * DocumentUpload Component
- * ========================
- * 
- * Drag-and-drop file upload interface for adding documents to the knowledge base.
- * 
- * Features:
- * - Drag and drop file upload zone
- * - Click to browse files
- * - Multiple file upload support
- * - Upload progress queue with status indicators
- * - Automatic cleanup of successful uploads from queue
- * 
- * Supported file types: PDF, DOCX, TXT
- * 
- * Props:
- * - onUploadSuccess: Callback fired when a file is successfully uploaded
- * - isLoading: Boolean indicating if upload is in progress
- * - setIsLoading: Function to update loading state
+ * DocumentUpload - Drag & drop file upload component
  */
 
 import { useState, useCallback } from 'react';
@@ -27,50 +10,32 @@ import { api } from '../api';
 import './DocumentUpload.css';
 
 function DocumentUpload({ onUploadSuccess, isLoading, setIsLoading }) {
-  // Queue of files being uploaded with their status
   const [uploadQueue, setUploadQueue] = useState([]);
-  // Error message to display
   const [error, setError] = useState(null);
 
-  /**
-   * Handle files dropped or selected.
-   * Processes each file sequentially, updating status in the queue.
-   */
   const onDrop = useCallback(async (acceptedFiles) => {
     setError(null);
     
-    // Add all files to the upload queue with pending status
     const newQueue = acceptedFiles.map(file => ({
       file,
-      status: 'pending',  // pending -> uploading -> success/error
-      progress: 0,
+      status: 'pending',
     }));
     
     setUploadQueue(prev => [...prev, ...newQueue]);
     setIsLoading(true);
 
-    // Process each file sequentially
-    for (let i = 0; i < acceptedFiles.length; i++) {
-      const file = acceptedFiles[i];
-      
-      // Update status to uploading
+    for (const file of acceptedFiles) {
       setUploadQueue(prev => prev.map(item => 
         item.file === file ? { ...item, status: 'uploading' } : item
       ));
 
       try {
-        // Upload file to backend
         const result = await api.uploadFile(file);
-        
-        // Update status to success
         setUploadQueue(prev => prev.map(item => 
           item.file === file ? { ...item, status: 'success', result } : item
         ));
-        
-        // Notify parent component
         onUploadSuccess(result);
       } catch (err) {
-        // Update status to error
         setUploadQueue(prev => prev.map(item => 
           item.file === file ? { ...item, status: 'error', error: err.message } : item
         ));
@@ -79,14 +44,11 @@ function DocumentUpload({ onUploadSuccess, isLoading, setIsLoading }) {
     }
 
     setIsLoading(false);
-    
-    // Clear successful uploads from queue after 3 seconds
     setTimeout(() => {
       setUploadQueue(prev => prev.filter(item => item.status !== 'success'));
     }, 3000);
   }, [onUploadSuccess, setIsLoading]);
 
-  // Configure react-dropzone
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -94,50 +56,29 @@ function DocumentUpload({ onUploadSuccess, isLoading, setIsLoading }) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt'],
     },
-    multiple: true, // Allow multiple file selection
+    multiple: true,
   });
 
-  /**
-   * Remove a file from the upload queue.
-   * Used for dismissing errors or completed uploads.
-   */
   const removeFromQueue = (file) => {
     setUploadQueue(prev => prev.filter(item => item.file !== file));
   };
 
-  /**
-   * Get the appropriate icon for a file based on its extension.
-   * Currently returns a generic file icon for all types.
-   */
-  const getFileIcon = (filename) => {
-    return <FileText size={20} />;
-  };
-
-  /**
-   * Get the status icon based on upload status.
-   */
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'uploading':
-        return <Loader2 size={18} className="spin" />;
-      case 'success':
-        return <CheckCircle size={18} className="success-icon" />;
-      case 'error':
-        return <AlertCircle size={18} className="error-icon" />;
-      default:
-        return null;
+      case 'uploading': return <Loader2 size={18} className="spin" />;
+      case 'success': return <CheckCircle size={18} className="success-icon" />;
+      case 'error': return <AlertCircle size={18} className="error-icon" />;
+      default: return null;
     }
   };
 
   return (
     <div className="document-upload">
-      {/* Section Header */}
       <div className="section-header">
         <h2>Upload Documents</h2>
         <p>Upload PDF, DOCX, or TXT files to build your knowledge base</p>
       </div>
 
-      {/* Dropzone Area */}
       <div
         {...getRootProps()}
         className={`dropzone ${isDragActive ? 'active' : ''} ${isLoading ? 'disabled' : ''}`}
@@ -160,7 +101,6 @@ function DocumentUpload({ onUploadSuccess, isLoading, setIsLoading }) {
               </>
             )}
           </div>
-          {/* Supported file type badges */}
           <div className="file-types">
             <span className="file-type">PDF</span>
             <span className="file-type">DOCX</span>
@@ -169,7 +109,6 @@ function DocumentUpload({ onUploadSuccess, isLoading, setIsLoading }) {
         </div>
       </div>
 
-      {/* Upload Queue - shows files being uploaded */}
       <AnimatePresence>
         {uploadQueue.length > 0 && (
           <motion.div 
@@ -189,23 +128,17 @@ function DocumentUpload({ onUploadSuccess, isLoading, setIsLoading }) {
                   exit={{ opacity: 0, x: 20 }}
                 >
                   <div className="queue-item-icon">
-                    {getFileIcon(item.file.name)}
+                    <FileText size={20} />
                   </div>
                   <div className="queue-item-info">
                     <span className="queue-item-name">{item.file.name}</span>
-                    <span className="queue-item-size">
-                      {(item.file.size / 1024).toFixed(1)} KB
-                    </span>
+                    <span className="queue-item-size">{(item.file.size / 1024).toFixed(1)} KB</span>
                   </div>
                   <div className="queue-item-status">
                     {getStatusIcon(item.status)}
                   </div>
-                  {/* Show remove button when not actively uploading */}
                   {item.status !== 'uploading' && (
-                    <button 
-                      className="queue-item-remove"
-                      onClick={() => removeFromQueue(item.file)}
-                    >
+                    <button className="queue-item-remove" onClick={() => removeFromQueue(item.file)}>
                       <X size={16} />
                     </button>
                   )}
@@ -216,7 +149,6 @@ function DocumentUpload({ onUploadSuccess, isLoading, setIsLoading }) {
         )}
       </AnimatePresence>
 
-      {/* Error Message Display */}
       <AnimatePresence>
         {error && (
           <motion.div

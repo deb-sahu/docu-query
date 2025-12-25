@@ -1,120 +1,148 @@
 """
-Vector Store - TF-IDF Based Similarity Search
-==============================================
-
-This module provides a simple but effective text similarity search
-using TF-IDF (Term Frequency-Inverse Document Frequency) vectorization.
-
-How TF-IDF works:
------------------
-1. Term Frequency (TF): How often a word appears in a document
-2. Inverse Document Frequency (IDF): How rare a word is across all documents
-3. TF-IDF score = TF × IDF (important words that appear frequently in a 
-   specific document but rarely elsewhere get higher scores)
-
-Limitations:
-------------
-- Keyword-based matching (no semantic understanding)
-- Cannot match synonyms ("car" won't match "automobile")
-- No understanding of word order or context
-
-For better semantic search, consider upgrading to:
-- Sentence Transformers (e.g., all-MiniLM-L6-v2)
-- OpenAI embeddings with vector databases like FAISS or ChromaDB
+Vector Store - ChromaDB with Sentence Transformer Embeddings
 """
 
-from typing import List
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
+from typing import List, Optional
+from pathlib import Path
+import chromadb
+from chromadb.config import Settings as ChromaSettings
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from app.core.config import settings, CHROMA_DIR
 
 
-class SimpleTfidfStore:
-    """
-    A simple in-memory vector store using TF-IDF for text similarity.
+# Initialize embedding model (runs locally)
+_embeddings = None
+
+def get_embeddings():
+    """Get or initialize the embedding model."""
+    global _embeddings
+    if _embeddings is None:
+        _embeddings = HuggingFaceEmbeddings(
+            model_name=settings.EMBEDDING_MODEL,
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True}
+        )
+    return _embeddings
+
+
+# Text splitter for chunking documents
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=settings.CHUNK_SIZE,
+    chunk_overlap=settings.CHUNK_OVERLAP,
+    separators=["\n\n", "\n", ". ", " ", ""]
+)
+
+
+class DocumentStore:
+    """Manages document storage and retrieval using ChromaDB."""
     
-    This class takes a list of text chunks, creates TF-IDF vectors for each,
-    and provides a method to find the most similar chunks to a query.
+    def __init__(self):
+        self.embeddings = get_embeddings()
+        self.client = chromadb.PersistentClient(
+            path=str(CHROMA_DIR),
+            settings=ChromaSettings(anonymized_telemetry=False)
+        )
+        self._vectorstore = None
     
-    Attributes:
-        chunks: List of text strings that form the searchable corpus.
-        vectorizer: Fitted TF-IDF vectorizer for transforming text.
-        tfidf_matrix: Sparse matrix of TF-IDF vectors for all chunks.
-        
-    Example:
-        >>> store = SimpleTfidfStore(["Python is great", "Java is verbose"])
-        >>> results = store.top_k("programming language", k=1)
-        >>> print(results[0]["text"])
-    """
-    
-    def __init__(self, chunks: List[str]):
-        """
-        Initialize the store with text chunks.
-        
-        Args:
-            chunks: List of text strings to index. Each chunk becomes
-                   a searchable document in the corpus.
-        """
-        self.chunks = chunks or []
-        self.vectorizer = None
-        self.tfidf_matrix = None
-        
-        if self.chunks:
-            # Configure TF-IDF vectorizer:
-            # - stop_words="english": Ignore common words (the, is, at, etc.)
-            # - max_df=0.9: Ignore terms that appear in >90% of documents
-            self.vectorizer = TfidfVectorizer(
-                stop_words="english",
-                max_df=0.9
+    @property
+    def vectorstore(self) -> Optional[Chroma]:
+        """Get or create the vector store."""
+        if self._vectorstore is None:
+            self._vectorstore = Chroma(
+                client=self.client,
+                collection_name="documents",
+                embedding_function=self.embeddings
             )
-            
-            # Fit the vectorizer and transform chunks into TF-IDF vectors
-            self.tfidf_matrix = self.vectorizer.fit_transform(self.chunks)
-
-    def top_k(self, query: str, k: int = 5) -> List[dict]:
+        return self._vectorstore
+    
+    def add_document(self, doc_id: str, filename: str, text: str) -> int:
         """
-        Find the k most similar chunks to the query.
+        Add a document to the vector store.
         
-        Uses cosine similarity between the query's TF-IDF vector and
-        all chunk vectors. Results are sorted by similarity score.
+        Returns the number of chunks created.
+        """
+        # Split text into chunks
+        chunks = text_splitter.split_text(text)
+        
+        if not chunks:
+            return 0
+        
+        # Create LangChain documents with metadata
+        documents = [
+            Document(
+                page_content=chunk,
+                metadata={
+                    "doc_id": doc_id,
+                    "source": filename,
+                    "chunk_index": i
+                }
+            )
+            for i, chunk in enumerate(chunks)
+        ]
+        
+        # Add to vector store
+        self.vectorstore.add_documents(documents)
+        
+        return len(chunks)
+    
+    def search(self, query: str, top_k: int = None, doc_ids: List[str] = None) -> List[Document]:
+        """
+        Search for relevant documents.
         
         Args:
-            query: The search query string.
-            k: Number of top results to return (default: 5).
-            
-        Returns:
-            List of dicts, each containing:
-            - chunk_id (int): Index of the chunk in the original list
-            - score (float): Cosine similarity score (0 to 1)
-            - text (str): The chunk's text content
-            
-            Returns empty list if no chunks are indexed.
-            
-        Example:
-            >>> results = store.top_k("What is machine learning?", k=3)
-            >>> for r in results:
-            ...     print(f"Score: {r['score']:.2f} - {r['text'][:50]}...")
+            query: Search query
+            top_k: Number of results (default from settings)
+            doc_ids: Optional filter to specific documents
         """
-        # Handle empty corpus
-        if self.tfidf_matrix is None or self.tfidf_matrix.shape[0] == 0:
-            return []
+        k = top_k or settings.TOP_K_RESULTS
         
-        # Transform query using the same vectorizer (must be fitted first)
-        query_vector = self.vectorizer.transform([query])
+        # Build filter if doc_ids specified
+        where_filter = None
+        if doc_ids:
+            where_filter = {"doc_id": {"$in": doc_ids}}
         
-        # Compute cosine similarity between query and all chunks
-        # linear_kernel is equivalent to cosine_similarity for normalized vectors
-        similarities = linear_kernel(query_vector, self.tfidf_matrix).flatten()
+        results = self.vectorstore.similarity_search_with_relevance_scores(
+            query, k=k, filter=where_filter
+        )
         
-        # Get indices of top k results (sorted by similarity, descending)
-        top_indices = similarities.argsort()[::-1][:k]
+        # Add score to metadata
+        documents = []
+        for doc, score in results:
+            doc.metadata["score"] = score
+            documents.append(doc)
         
-        # Build result list with chunk ID, score, and text
-        results = []
-        for idx in top_indices:
-            results.append({
-                "chunk_id": int(idx),
-                "score": float(similarities[idx]),
-                "text": self.chunks[idx]
-            })
-        
-        return results
+        return documents
+    
+    def delete_document(self, doc_id: str):
+        """Delete all chunks for a document."""
+        try:
+            collection = self.client.get_collection("documents")
+            # Get IDs of chunks belonging to this document
+            results = collection.get(where={"doc_id": doc_id})
+            if results["ids"]:
+                collection.delete(ids=results["ids"])
+        except Exception:
+            pass
+    
+    def clear_all(self):
+        """Delete all documents from the store."""
+        try:
+            self.client.delete_collection("documents")
+            self._vectorstore = None
+        except Exception:
+            pass
+    
+    def get_document_count(self) -> int:
+        """Get total number of chunks in the store."""
+        try:
+            collection = self.client.get_collection("documents")
+            return collection.count()
+        except Exception:
+            return 0
+
+
+# Singleton instance
+document_store = DocumentStore()

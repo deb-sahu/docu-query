@@ -1,54 +1,48 @@
 #!/bin/bash
 
-# DocuQuery - Document Q&A System Startup Script
+echo "Starting DocuQuery..."
 
-echo "🚀 Starting DocuQuery - Document Q&A System"
-echo "============================================"
-
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "📦 Creating virtual environment..."
-    python3 -m venv venv
+# Check for .env file
+if [ ! -f ".env" ]; then
+    echo "⚠️  No .env file found. Create one with your LLM configuration."
+    echo "   See README.md for setup instructions."
+    exit 1
 fi
 
 # Activate virtual environment
-source venv/bin/activate
+if [ -d "venv" ]; then
+    source venv/bin/activate
+else
+    echo "Creating virtual environment..."
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+fi
 
-# Install/update Python dependencies
-echo "📦 Installing Python dependencies..."
-pip install -r requirements.txt -q
-
-# Start backend in background
-echo "🔧 Starting backend server on port 8000..."
+# Start backend
+echo "Starting backend on port 8000..."
 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
+sleep 3
 
-# Wait for backend to start
-sleep 2
-
-# Check if frontend dependencies are installed
+# Install frontend deps if needed
 if [ ! -d "frontend/node_modules" ]; then
-    echo "📦 Installing frontend dependencies..."
-    cd frontend
-    npm install
-    cd ..
+    echo "Installing frontend dependencies..."
+    cd frontend && npm install && cd ..
 fi
 
 # Start frontend
-echo "🎨 Starting frontend on port 3000..."
-cd frontend
-npm run dev &
+echo "Starting frontend on port 3000..."
+cd frontend && npm run dev &
 FRONTEND_PID=$!
 
 echo ""
-echo "✅ Services started!"
-echo "   Backend:  http://localhost:8000"
+echo "✅ DocuQuery is running!"
 echo "   Frontend: http://localhost:3000"
+echo "   Backend:  http://localhost:8000"
 echo "   API Docs: http://localhost:8000/docs"
 echo ""
-echo "Press Ctrl+C to stop all services"
+echo "Press Ctrl+C to stop"
 
-# Wait for Ctrl+C
-trap "echo 'Stopping services...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT
+trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT
 wait
-
