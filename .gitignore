@@ -43,6 +43,7 @@ frontend/.vite/
 # Project specific
 uploads/
 data/
+*.db
 
 # Logs
 logs/
