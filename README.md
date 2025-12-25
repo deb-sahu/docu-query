@@ -15,12 +15,12 @@ This project is **100% free to run**. All components are open-source or have gen
 
 ## Features
 
-- **RAG-based Q&A** — Retrieves relevant context and generates answers using LLMs
-- **Configurable LLM** — Supports Gemini (free) and Llama (via Ollama)
-- **Semantic Search** — Uses sentence-transformers embeddings with ChromaDB
-- **Multi-format Support** — PDF, DOCX, and TXT documents
-- **Source Citations** — Shows which passages were used to generate answers
-- **REST API** — FastAPI backend with OpenAPI docs
+- **RAG-based Q&A** - Retrieves relevant context and generates answers using LLMs
+- **Configurable LLM** - Supports Gemini (free) and Llama (via Ollama)
+- **Semantic Search** - Uses sentence-transformers embeddings with ChromaDB
+- **Multi-format Support** - PDF, DOCX, and TXT documents
+- **Source Citations** - Shows which passages were used to generate answers
+- **REST API** - FastAPI backend with OpenAPI docs
 
 ## Architecture
 
@@ -140,7 +140,7 @@ Frontend available at `http://localhost:3000`
 |----------|---------|-------------|
 | `LLM_PROVIDER` | `gemini` | LLM provider: `gemini` or `ollama` |
 | `GEMINI_API_KEY` | - | Google AI API key |
-| `GEMINI_MODEL` | `gemini-2.0-flash` | Gemini model name |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model (2.5-flash, 2.5-pro, etc.) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
 | `OLLAMA_MODEL` | `llama3.2` | Ollama model name |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer model |
